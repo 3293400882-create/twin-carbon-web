@@ -133,130 +133,272 @@
   </div>
 </template>
 
-<script setup>
-import { ref, nextTick, watch } from 'vue'
-import FloatingPanel from '../components/FloatingPanel.vue'
-import DockArea from '../components/DockArea.vue'
-import LeftPanelContent from '../components/LeftPanelContent.vue'
-import RightPanelContent from '../components/RightPanelContent.vue'
-import { useDockStore } from '../composables/useDockStore'
+ <script setup>
+  import { ref, nextTick, watch, onMounted } from 'vue'
+  import { ElMessage } from 'element-plus'
+  import FloatingPanel from '../components/FloatingPanel.vue'
+  import DockArea from '../components/DockArea.vue'
+  import LeftPanelContent from '../components/LeftPanelContent.vue'
+  import RightPanelContent from '../components/RightPanelContent.vue'
+  import { useDockStore } from '../composables/useDockStore'
+  import {
+    getObservationPoints,
+    getCustomObservationPoints,
+    getCategoryRatio,
+    getCustomCategoryRatio,
+    getTrend,
+    getCustomTrend,
+    queryObjects,
+    previewImport,
+    confirmImport
+  } from '@/api/index.js'
 
-const dockStore = useDockStore()
+  const dockStore = useDockStore()
 
-// 注册面板到挂起系统
-dockStore.registerPanel('left-panel', '图层控制')
-dockStore.registerPanel('right-panel', '数据统计')
+  // 注册面板到挂起系统
+  dockStore.registerPanel('left-panel', '图层控制')
+  dockStore.registerPanel('right-panel', '数据统计')
 
-// 面板位置记忆（用于取消挂起后恢复位置）
-const leftPanelPos = ref({ x: 16, y: 72 })
-const rightPanelPos = ref({ x: window.innerWidth - 336, y: 72 })
+  // 面板位置记忆
+  const leftPanelPos = ref({ x: 16, y: 72 })
+  const rightPanelPos = ref({ x: window.innerWidth - 336, y: 72 })
+  const dockHintSide = ref(null)
 
-// 边缘吸附提示
-const dockHintSide = ref(null)
-
-function onDockHint(side) {
-  dockHintSide.value = side
-}
-
-// 上传文件列表 — 父组件持有，避免悬挂/悬浮切换时丢失
-const uploadFileList = ref([])
-
-// 组件引用 — 用于手动触发图表 resize
-const floatingRightRef = ref(null)
-const dockRightRef = ref(null)
-const dockRightRef2 = ref(null)
-
-// 获取当前活跃的挂起右侧图表组件引用
-function getDockRightRef() {
-  const side = dockStore.getPanelSide('right-panel')
-  if (side === 'left') return dockRightRef
-  if (side === 'right') return dockRightRef2
-  return null
-}
-
-// 筛选数据
-const years = ['2025', '2024', '2023', '2022']
-const quarters = ['第一季度', '第二季度', '第三季度', '第四季度']
-const filterYear = ref('2025')
-const filterQuarter = ref('第二季度')
-const searchText = ref('')
-
-// 标签页
-const activeTab = ref('bar')
-const chartModes = [
-  { label: '热力图', value: 'heat' },
-  { label: '柱状图', value: 'bar' }
-]
-const trendTab = ref('全部')
-const trendTabs = ['全部', '商业', '工业', '农业', '住宅']
-
-// 图例
-const legendList = ref([
-  { color: '#E74C3C', label: 'school' },
-  { color: '#27AE60', label: '农业' },
-  { color: '#F39C12', label: '工业' },
-  { color: '#9B59B6', label: '商业' },
-  { color: '#5BA3D9', label: '住宅' }
-])
-
-// ── 挂起事件 ──
-function onDockPanel({ panelId, side }) {
-  dockStore.dockPanel(panelId, side)
-}
-
-function onDragEnd(panelId, pos) {
-  if (panelId === 'left-panel') leftPanelPos.value = pos
-  else if (panelId === 'right-panel') rightPanelPos.value = pos
-}
-
-// 从挂起区域拖出 → 解除挂起并定位到鼠标位置
-function onUndockDrag({ panelId, x, y }) {
-  const offsetX = panelId === 'left-panel' ? 135 : 160
-  if (panelId === 'left-panel') {
-    leftPanelPos.value = { x: Math.max(0, x - offsetX), y: Math.max(0, y - 20) }
-  } else if (panelId === 'right-panel') {
-    rightPanelPos.value = { x: Math.max(0, x - offsetX), y: Math.max(0, y - 20) }
+  function onDockHint(side) {
+    dockHintSide.value = side
   }
-}
 
-// ── 右侧面板折叠展开 ──
-function onRightFloatingCollapseChange(expanded) {
-  if (expanded) {
-    nextTick(() => floatingRightRef.value?.resize())
+  // 上传文件列表
+  const uploadFileList = ref([])
+
+  // 组件引用
+  const floatingRightRef = ref(null)
+  const dockRightRef = ref(null)
+  const dockRightRef2 = ref(null)
+
+  function getDockRightRef() {
+    const side = dockStore.getPanelSide('right-panel')
+    if (side === 'left') return dockRightRef
+    if (side === 'right') return dockRightRef2
+    return null
   }
-}
 
-// 右侧面板挂起展开时 → 触发 resize
-watch(
-  () => dockStore.isPanelExpanded('right-panel', 'left') || dockStore.isPanelExpanded('right-panel', 'right'),
-  (expanded) => {
-    if (expanded) {
-      nextTick(() => getDockRightRef()?.value?.resize())
+  // 筛选数据
+  const years = ['2025', '2024', '2023', '2022']
+  const quarters = ['第一季度', '第二季度', '第三季度', '第四季度']
+  const quarterMap = { '第一季度': 'Q1', '第二季度': 'Q2', '第三季度': 'Q3', '第四季度': 'Q4' }
+  const filterYear = ref('2025')
+  const filterQuarter = ref('第二季度')
+  const searchText = ref('')
+
+  // 标签页
+  const activeTab = ref('bar')
+  const chartModes = [
+    { label: '热力图', value: 'heat' },
+    { label: '柱状图', value: 'bar' }
+  ]
+  const trendTab = ref('全部')
+  const trendTabs = ['全部', '商业', '工业', '农业', '住宅']
+
+  // 图例
+  const legendList = ref([
+    { color: '#E74C3C', label: 'school' },
+    { color: '#27AE60', label: '农业' },
+    { color: '#F39C12', label: '工业' },
+    { color: '#9B59B6', label: '商业' },
+    { color: '#5BA3D9', label: '住宅' }
+  ])
+
+  // 地图点数据（供地图组件使用）
+  const mapPoints = ref([])
+  const customPoints = ref([])
+
+  // 图表数据（传给右侧面板）
+  const pieData = ref([])
+  const trendData = ref([])
+  const queryResult = ref(null)
+  const previewData = ref(null)
+
+  // ── 挂起事件 ──
+  function onDockPanel({ panelId, side }) {
+    dockStore.dockPanel(panelId, side)
+  }
+
+  function onDragEnd(panelId, pos) {
+    if (panelId === 'left-panel') leftPanelPos.value = pos
+    else if (panelId === 'right-panel') rightPanelPos.value = pos
+  }
+
+  function onUndockDrag({ panelId, x, y }) {
+    const offsetX = panelId === 'left-panel' ? 135 : 160
+    if (panelId === 'left-panel') {
+      leftPanelPos.value = { x: Math.max(0, x - offsetX), y: Math.max(0, y - 20) }
+    } else if (panelId === 'right-panel') {
+      rightPanelPos.value = { x: Math.max(0, x - offsetX), y: Math.max(0, y - 20) }
     }
   }
-)
 
-// ── 事件 ──
-const onConfirm = () => {
-  console.log('筛选确认', filterYear.value, filterQuarter.value)
-}
+  // ── 右侧面板折叠展开 ──
+  function onRightFloatingCollapseChange(expanded) {
+    if (expanded) {
+      nextTick(() => floatingRightRef.value?.resize())
+    }
+  }
 
-const onAddData = () => {
-  console.log('添加数据')
-}
+  watch(
+    () => dockStore.isPanelExpanded('right-panel', 'left') || dockStore.isPanelExpanded('right-panel', 'right'),
+    (expanded) => {
+      if (expanded) {
+        nextTick(() => getDockRightRef()?.value?.resize())
+      }
+    }
+  )
 
-const onPreview = () => {
-  console.log('预览')
-}
+  // ── API 调用事件 ──
 
-const onSave = () => {
-  console.log('保存')
-}
+  /** 筛选确认 → 获取地图点 + 刷新图表 */
+  const onConfirm = async () => {
+    const params = {
+      year: filterYear.value,
+      quarter: quarterMap[filterQuarter.value]
+    }
+    try {
+      const [mainRes, customRes] = await Promise.all([
+        getObservationPoints(params),
+        getCustomObservationPoints(params)
+      ])
+      mapPoints.value = mainRes.data || []
+      customPoints.value = customRes.data || []
+      console.log('【主数据地图点】', mapPoints.value)
+      console.log('【自定义地图点】', customPoints.value)
+      ElMessage.success(`已加载 ${mapPoints.value.length} 条主数据，${customPoints.value.length} 条自定义数据`)
+      // 同时刷新统计图表
+      await loadCharts(params)
+    } catch (err) {
+      ElMessage.error('数据加载失败')
+    }
+  }
 
-const onSearch = () => {
-  console.log('搜索', searchText.value)
-}
-</script>
+  /** 加载右侧图表数据 */
+  async function loadCharts(params = {}) {
+    try {
+      // 饼图：主数据
+      const pieRes = await getCategoryRatio(params)
+      pieData.value = pieRes.data || []
+      console.log('【饼图数据】', pieData.value)
+
+      // 趋势图：根据 tab 决定
+      const trendParams = { ...params }
+      if (trendTab.value !== '全部') {
+        trendParams.category = trendTab.value
+      }
+      const trendRes = await getTrend(trendParams)
+      trendData.value = trendRes.data || []
+      console.log('【趋势图数据】', trendData.value, '参数:', trendParams)
+
+      // 刷新图表
+      nextTick(() => {
+        floatingRightRef.value?.updateCharts?.(pieData.value, trendData.value)
+        getDockRightRef()?.value?.updateCharts?.(pieData.value, trendData.value)
+      })
+    } catch (err) {
+      console.error('图表数据加载失败', err)
+    }
+  }
+
+  // 趋势 tab 切换时自动刷新
+  watch(trendTab, () => {
+    const params = {
+      year: filterYear.value,
+      quarter: quarterMap[filterQuarter.value]
+    }
+    loadCharts(params)
+  })
+
+  /** 添加数据（跳转到自定义数据 tab 或打开弹窗） */
+  const onAddData = () => {
+    // 业务逻辑：可打开添加自定义观测点弹窗
+    activeTab.value = 'bar'
+    ElMessage.info('请上传 Excel 文件并点击保存')
+  }
+
+  /** 预览 → Excel 上传预览 */
+  const onPreview = async () => {
+    const file = uploadFileList.value[0]
+    if (!file) {
+      ElMessage.warning('请先选择文件')
+      return
+    }
+    const formData = new FormData()
+    formData.append('file', file.raw || file)
+    try {
+      const res = await previewImport(formData)
+      if (res.code === 200) {
+        previewData.value = res.data
+        console.log('【预览数据】', previewData.value)
+        const { totalCount, validCount, invalidCount } = res.data
+        ElMessage.success(`预览成功：共 ${totalCount} 条，有效 ${validCount} 条，无效 ${invalidCount || 0} 条`)
+      } else {
+        previewData.value = null
+        ElMessage.warning(res.message)
+      }
+    } catch (err) {
+      previewData.value = null
+      ElMessage.error('预览失败')
+    }
+  }
+
+  /** 保存 → 确认入库 */
+  const onSave = async () => {
+    const file = uploadFileList.value[0]
+    if (!file) {
+      ElMessage.warning('请先选择文件')
+      return
+    }
+    try {
+      const formData = new FormData()
+      formData.append('file', file.raw || file)
+      const previewRes = await previewImport(formData)
+      if (previewRes.code === 200 && previewRes.data?.batchId) {
+        console.log('【保存批次ID】', previewRes.data.batchId)
+        await confirmImport({ batchId: previewRes.data.batchId })
+        console.log('【保存成功】')
+        ElMessage.success('保存成功')
+        uploadFileList.value = []
+        previewData.value = null
+        // 刷新数据
+        onConfirm()
+      } else {
+        ElMessage.warning(previewRes.message || '预览未返回有效批次号，无法保存')
+      }
+    } catch (err) {
+      ElMessage.error('保存失败')
+    }
+  }
+
+  /** 搜索 → 对象查询 */
+  const onSearch = async () => {
+    if (!searchText.value.trim()) {
+      ElMessage.warning('请输入搜索内容')
+      return
+    }
+    try {
+      const res = await queryObjects({ keyword: searchText.value.trim() })
+      queryResult.value = res.data || []
+      console.log('【查询结果】', queryResult.value)
+      // 将结果传给右侧面板展示
+      nextTick(() => {
+        floatingRightRef.value?.setQueryResult?.(queryResult.value)
+        getDockRightRef()?.value?.setQueryResult?.(queryResult.value)
+      })
+      ElMessage.success(`查询到 ${queryResult.value.length} 条结果`)
+    } catch (err) {
+      ElMessage.error('查询失败')
+    }
+  }
+
+  // 页面加载时不自动获取数据，等待用户点击确认
+  </script>
 
 <style scoped>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -272,7 +414,7 @@ const onSearch = () => {
   position: fixed;
   top: 0; left: 0; right: 0;
   height: 56px;
-  background: rgba(58, 69, 86, 0.85);
+  background: rgba(15, 35, 70, 0.55);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: flex;

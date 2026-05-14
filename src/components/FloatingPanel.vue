@@ -9,7 +9,7 @@
     }"
     :style="panelStyle"
     ref="panelRef"
-    @pointerdown.prevent="onPointerDown"
+    @pointerdown="onPointerDown"
   >
     <!-- 标题栏（拖拽手柄） -->
     <div class="panel-header" @pointerdown.stop="onHeaderPointerDown">
@@ -262,7 +262,6 @@ onUnmounted(() => {
   flex-direction: column;
   overflow: hidden;
   transition: box-shadow 0.2s;
-  user-select: none;
   position: relative;
 }
 
@@ -297,6 +296,7 @@ onUnmounted(() => {
   cursor: grab;
   flex-shrink: 0;
   min-height: 40px;
+  user-select: none;
 }
 
 .floating-panel.is-dragging .panel-header {
@@ -390,6 +390,7 @@ onUnmounted(() => {
   color: rgba(0, 0, 0, 0.2);
   transition: color 0.15s;
   z-index: 1;
+  user-select: none;
 }
 
 .resize-handle:hover {
