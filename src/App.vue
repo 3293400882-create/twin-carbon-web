@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted } from 'vue'
 import home from './views/home.vue';
 let viewer = null;
 const printfms=()=>{
@@ -8,8 +8,8 @@ console.log("点击事件");
 onMounted(async () => {
   viewer = new Cesium.Viewer('cesiumContainer', {
     navigation: false
-  });
-  window.cesiumViewer = viewer;
+  })
+  window.cesiumViewer = viewer
   viewer.pickEvent.addEventListener(printfms);
   const scene = viewer.scene;
 

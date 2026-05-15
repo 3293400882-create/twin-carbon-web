@@ -48,7 +48,7 @@
       </div>
     </el-card>
     <el-card v-else-if="queryResult && queryResult.length === 0" shadow="never" class="result-card" :body-style="{ padding: '12px' }">
-      <div class="result-title" style="color: #6D88A3">未找到匹配结果</div>
+      <div class="result-title" style="color: #999">未找到匹配结果</div>
     </el-card>
 
 
@@ -374,10 +374,10 @@ const localSearchText = computed({
   left: 0;
   right: 0;
   z-index: 200;
-  background: rgba(32, 51, 71, 0.98);
-  border: 1px solid rgba(73, 93, 104, 0.6);
+  background: #fff;
+  border: 1px solid #e4e7ed;
   border-radius: 4px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
   max-height: 200px;
   overflow-y: auto;
 }
@@ -385,14 +385,13 @@ const localSearchText = computed({
 .suggestion-item {
   padding: 8px 12px;
   font-size: 13px;
-  color: #cbd5e1;
+  color: #333;
   cursor: pointer;
   transition: background 0.15s;
 }
 
 .suggestion-item:hover {
-  background: rgba(114, 198, 195, 0.15);
-  color: #72C6C3;
+  background: #ecf5ff;
 }
 
 
@@ -434,7 +433,7 @@ const localSearchText = computed({
 
 .result-item {
   padding-top: 10px;
-  border-top: 1px dashed rgba(73, 93, 104, 0.4);
+  border-top: 1px dashed #ebeef5;
 }
 
 .result-item.is-first {

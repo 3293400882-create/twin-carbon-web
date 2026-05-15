@@ -267,7 +267,6 @@ onUnmounted(() => {
   flex-direction: column;
   overflow: hidden;
   transition: box-shadow 0.2s;
-  user-select: none;
   position: relative;
 }
 
@@ -335,17 +334,7 @@ onUnmounted(() => {
   cursor: grab;
   flex-shrink: 0;
   min-height: 40px;
-  position: relative;
-}
-
-.panel-header::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 12px;
-  right: 12px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(114,198,195,0.35), transparent);
+  user-select: none;
 }
 
 .floating-panel.is-dragging .panel-header {
@@ -439,6 +428,7 @@ onUnmounted(() => {
   color: rgba(148, 163, 184, 0.2);
   transition: color 0.15s;
   z-index: 1;
+  user-select: none;
 }
 
 .resize-handle:hover {
