@@ -422,8 +422,26 @@ export function getMockResponse(config) {
 
   if (key === 'get:/monitoring/query') {
     const keyword = params?.keyword
-    if (keyword) return filterQueryByKeyword(mockQuery, keyword)
-    return mockQuery
+    // 合并所有数据源作为查询池，保证搜索建议与实际查询结果一致
+    const allQueryData = {
+      code: 200,
+      message: 'success',
+      data: [
+        ...(mockPoints.data || []),
+        ...(mockCustomPoints.data || []),
+        ...(mockQuery.data || [])
+      ]
+    }
+    // 去重
+    const seen = new Set()
+    allQueryData.data = allQueryData.data.filter(item => {
+      const key = `${item.name}-${item.category}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    if (keyword) return filterQueryByKeyword(allQueryData, keyword)
+    return allQueryData
   }
 
   // 兜底：基础 key 匹配
