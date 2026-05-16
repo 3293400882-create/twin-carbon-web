@@ -14,7 +14,7 @@ onMounted(async () => {
   const scene = viewer.scene;
 
   try {
-    const layers = await scene.open("/iserver/services/campus/rest/realspace","AnZheng");
+    const layers = await scene.open("/iserver/services/3D-carbon/rest/realspace");
     console.log("场景加载成功，图层数:", layers?.length ?? 0);
 
     if (layers?.length > 0) {
